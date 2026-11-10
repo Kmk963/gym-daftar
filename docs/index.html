@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1f4fa8">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>دفتر الجيم</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=Readex+Pro:wght@500;700&display=swap">
+<style>
+/* Layout: one narrow column like a training notebook; sticky tab bar; each exercise is a card of set rows */
+:root{
+  --bg:#f3f4f2; --card:#ffffff; --fg:#1c1f23; --muted:#646b73; --line:#dde0dc;
+  --accent:#1f4fa8; --accent-soft:#e3eaf7; --pr:#b07a00; --pr-soft:#fbf0d2;
+  --up:#1d7a46; --down:#b3362c;
+  --f-body:"IBM Plex Sans Arabic",system-ui,"Segoe UI",Tahoma,sans-serif;
+  --f-head:"Readex Pro","IBM Plex Sans Arabic",system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#141618; --card:#1d2023; --fg:#e8eaec; --muted:#9aa1a8; --line:#2e3236;
+  --accent:#7ea4ee; --accent-soft:#1f2a3d; --pr:#e2b443; --pr-soft:#33290f;
+  --up:#5cc58a; --down:#ef7b6f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141618; --card:#1d2023; --fg:#e8eaec; --muted:#9aa1a8; --line:#2e3236;
+  --accent:#7ea4ee; --accent-soft:#1f2a3d; --pr:#e2b443; --pr-soft:#33290f;
+  --up:#5cc58a; --down:#ef7b6f; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:560px;margin:0 auto;padding-block:12px 48px;display:flex;flex-direction:column;gap:14px}
+header{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
+h1{font-family:var(--f-head);font-size:22px;margin:0;letter-spacing:-.01em}
+h2{font-family:var(--f-head);font-size:17px;margin:0;text-wrap:balance}
+.status{font-size:12px;color:var(--muted)}
+.status.err{color:var(--down)}
+nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);display:grid;grid-template-columns:repeat(5,1fr);gap:4px;padding-block:6px}
+nav button{font:inherit;font-weight:600;border:0;background:transparent;color:var(--muted);padding:9px 4px;border-radius:10px;cursor:pointer}
+nav button[aria-current="true"]{background:var(--accent-soft);color:var(--accent)}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn{border:1px solid var(--line);background:var(--card);padding:8px 14px;border-radius:10px;font-weight:600}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--card)}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--muted);padding:6px 8px}
+.btn.danger{color:var(--down)}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.spread{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.num{font-variant-numeric:tabular-nums;font-family:var(--f-head);font-weight:500}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.datebar{display:flex;align-items:center;gap:6px}
+.datebar .day{flex:1;text-align:center;font-family:var(--f-head);font-weight:500}
+.datebar input{font:inherit;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:6px 8px;color:var(--fg)}
+.last{font-size:13px;color:var(--muted);background:var(--bg);border-radius:8px;padding:6px 10px}
+.sets{display:grid;grid-template-columns:28px 1fr 1fr 32px;gap:6px 8px;align-items:center}
+.sets .h{font-size:12px;color:var(--muted)}
+.sets .i{color:var(--muted);text-align:center}
+.sets input{width:100%;font:inherit;font-family:var(--f-head);font-variant-numeric:tabular-nums;text-align:center;
+  border:1px solid var(--line);border-radius:10px;padding:9px 6px;background:var(--bg);color:var(--fg);min-width:0}
+.sets input::placeholder{color:var(--muted);opacity:.55}
+.sum{font-size:13px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.badge{font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--pr-soft);color:var(--pr)}
+.empty{text-align:center;color:var(--muted);padding:28px 12px;display:flex;flex-direction:column;gap:10px;align-items:center}
+.sheet{display:flex;flex-direction:column;gap:8px}
+.sheet input[type=search],.field{font:inherit;width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--bg);color:var(--fg)}
+.list{display:flex;flex-direction:column;max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+.list button{border:0;border-bottom:1px solid var(--line);background:transparent;text-align:start;padding:10px 12px}
+.list button:last-child{border-bottom:0}
+.list button:hover{background:var(--accent-soft)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{font-weight:500;color:var(--muted);font-size:12px;text-align:start;padding:6px 4px;border-bottom:1px solid var(--line)}
+td{padding:8px 4px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+.tw{overflow-x:auto}
+.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:var(--bg);border-radius:10px;padding:3px}
+.seg button{border:0;background:transparent;padding:7px 2px;border-radius:8px;font-size:13px;font-weight:600;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--card);color:var(--accent)}
+.hl{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.hl:last-child{border-bottom:0}
+.hl .pct{grid-row:span 2;font-family:var(--f-head);font-weight:700;font-size:24px;color:var(--up);font-variant-numeric:tabular-nums;min-width:72px}
+.hl .rank{font-size:12px;color:var(--pr);font-weight:600}
+.chip{font-size:11px;font-weight:600;padding:1px 7px;border-radius:999px;background:var(--bg);color:var(--muted);white-space:nowrap}
+.up{color:var(--up)} .down{color:var(--down)}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tile{display:flex;flex-direction:column;gap:2px}
+.tile b{font-family:var(--f-head);font-size:20px;font-variant-numeric:tabular-nums}
+.tile span{font-size:12px;color:var(--muted)}
+select{font:inherit;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--card);color:var(--fg);max-width:100%}
+svg text{fill:var(--muted);font-size:10px;font-family:var(--f-head)}
+textarea{width:100%;min-height:110px;font:12px/1.4 ui-monospace,Consolas,monospace;border:1px solid var(--line);border-radius:10px;padding:8px;background:var(--bg);color:var(--fg);direction:ltr}
+.hist{display:flex;flex-direction:column}
+.hist .item{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);align-items:center}
+.hist .item:last-child{border-bottom:0}
+.hist .item button.open{border:0;background:transparent;text-align:start;padding:0;flex:1;min-width:0}
+@media (prefers-reduced-motion:no-preference){.card{transition:border-color .2s}}
+</style>
+
+<div class="wrap" dir="rtl" lang="ar">
+  <header>
+    <h1>دفتر الجيم</h1>
+    <span class="status" id="status">محفوظ على هذا الجهاز</span>
+  </header>
+  <nav id="tabs">
+    <button data-v="log">اليوم</button>
+    <button data-v="an">التحليل</button>
+    <button data-v="prog">الأسبوع</button>
+    <button data-v="hist">السجل</button>
+    <button data-v="ex">التمارين</button>
+  </nav>
+  <main id="app"></main>
+</div>
+
+<script>
+const DEFAULT_NAMES=["بنش برس بار","بنش مائل دمبل","تفتيح صدر","ضغط صدر جهاز","سحب أمامي","تجديف بار","تجديف دمبل","عقلة","سكوات","ليغ برس","رفعة رومانية","ديدلفت","رفرفة أرجل","طي أرجل","شولدر برس دمبل","رفرفة جانبية","كتف خلفي","باي بار","باي هامر","تراي حبل","تراي فرنسي","سمانة","بطن"];
+const freshState=()=>({exercises:DEFAULT_NAMES.map((n,i)=>({id:"x"+i,name:n})),sessions:{}});
+let S=freshState();
+let view="log",curDate=ymd(new Date()),progEx="",weekOff=0,picking=false,pickQ="",armed=null,showBackup=false,anDays=28;
+const app=document.getElementById("app");
+
+/* ---------- helpers ---------- */
+function ymd(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function parseD(s){const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)}
+function addDays(s,n){const d=parseD(s);d.setDate(d.getDate()+n);return ymd(d)}
+const fDay=new Intl.DateTimeFormat("ar-SY-u-nu-latn",{weekday:"long",day:"numeric",month:"long"});
+const fShort=new Intl.DateTimeFormat("ar-SY-u-nu-latn",{day:"numeric",month:"short"});
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const n1=x=>(Math.round(x*10)/10).toLocaleString("en");
+const rid=()=>Math.random().toString(36).slice(2,10);
+const sid=date=>"s"+date;
+const clone=o=>JSON.parse(JSON.stringify(o));
+const valid=e=>e.sets.filter(s=>+s.r>0);
+const vol=e=>valid(e).reduce((a,s)=>a+(+s.w||0)*(+s.r),0);
+const reps=e=>valid(e).reduce((a,s)=>a+(+s.r),0);
+const e1=s=>(+s.w>0&&+s.r>0)?(+s.r===1?+s.w:+s.w*(1+(+s.r)/30)):0;
+const best=e=>Math.max(0,...valid(e).map(e1));
+const exName=id=>(S.exercises.find(x=>x.id===id)||{name:"تمرين محذوف"}).name;
+const sorted=()=>Object.values(S.sessions).sort((a,b)=>a.date<b.date?-1:1);
+function history(ex,before){return sorted().filter(s=>!before||s.date<before).flatMap(s=>s.entries.filter(e=>e.ex===ex&&valid(e).length).map(e=>({date:s.date,e})))}
+const setsText=e=>valid(e).map(s=>`${+s.w||0}×${+s.r}`).join(" · ");
+function weekStart(dateStr){const d=parseD(dateStr);d.setDate(d.getDate()-((d.getDay()+1)%7));return ymd(d)} // weeks start Saturday
+
+/* ---------- storage: account (db) when available, this device otherwise ---------- */
+const LS="gym-daftar-v1";
+const cloud={db:null,uid:null,chains:{},timers:{}};
+function cacheLocal(){try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}}
+function loadLocal(){try{const t=localStorage.getItem(LS);if(t){const o=JSON.parse(t);if(o&&Array.isArray(o.exercises)&&o.sessions)S=o}}catch(e){}}
+function status(text,err){const el=document.getElementById("status");el.textContent=text;el.classList.toggle("err",!!err)}
+const profRef=()=>cloud.db.doc("data/users/"+cloud.uid+"/profile");
+const sessCol=()=>profRef().collection("sessions");
+let pending=0;
+function chain(key,fn){
+  pending++;status("جارٍ الحفظ…");
+  const p=(cloud.chains[key]||Promise.resolve()).then(fn).then(()=>{if(--pending===0)status("محفوظ على حسابك")},
+    err=>{pending--;status(err&&err.code==="quota_exceeded"?"المساحة امتلأت، احذف جلسات قديمة":"تعذّر الحفظ، تحقق من الاتصال",true)});
+  cloud.chains[key]=p.catch(()=>{});
+}
+function saveSession(id){
+  const s=S.sessions[id];
+  if(s&&!s.entries.length)delete S.sessions[id];
+  cacheLocal();
+  if(!cloud.db)return;
+  clearTimeout(cloud.timers[id]);
+  cloud.timers[id]=setTimeout(()=>{const cur=S.sessions[id];const ref=sessCol().doc(id);chain(id,()=>cur?ref.set(clone(cur)):ref.delete())},700);
+}
+function saveProfile(){cacheLocal();if(!cloud.db)return;clearTimeout(cloud.timers.p);cloud.timers.p=setTimeout(()=>chain("p",()=>profRef().set({exercises:clone(S.exercises)})),500)}
+async function initCloud(){
+  if(!window.claude||!window.claude.use){status("محفوظ على هذا الجهاز فقط");return}
+  const [db,user]=await Promise.all([claude.use("db"),claude.use("user")]);
+  const id=user?await user.id():null;
+  if(!db||!id){status("محفوظ على هذا الجهاز فقط");return}
+  cloud.db=db;cloud.uid=id;status("جارٍ تحميل بياناتك…");
+  const timeout=new Promise((_,rej)=>setTimeout(()=>rej({code:"timeout"}),10000));
+  try{
+    const [p,q]=await Promise.race([Promise.all([profRef().get(),sessCol().limit(1000).get()]),timeout]);
+    const ns={exercises:null,sessions:{}};
+    if(p.exists&&Array.isArray(p.data().exercises))ns.exercises=clone(p.data().exercises);
+    q.docs.forEach(d=>{const v=d.data();if(v)ns.sessions[d.id]=clone(v)});
+    const cloudEmpty=!ns.exercises&&!q.size;
+    if(cloudEmpty){ // first visit on this account: upload what this device has
+      saveProfile();Object.keys(S.sessions).forEach(saveSession);
+    }else{S={exercises:ns.exercises||freshState().exercises,sessions:ns.sessions};cacheLocal();render()}
+    status("محفوظ على حسابك");
+  }catch(e){cloud.db=null;status("ما قدرنا نوصل لحسابك، البيانات محفوظة على هذا الجهاز",true)}
+}
+
+/* ---------- log view ---------- */
+function curSession(create){
+  const id=sid(curDate);
+  if(!S.sessions[id]&&create)S.sessions[id]={id,date:curDate,entries:[]};
+  return S.sessions[id];
+}
+function entrySummary(e){
+  const h=history(e.ex,curDate);const prev=Math.max(0,...h.map(x=>best(x.e)));const b=best(e);
+  const parts=[];
+  if(vol(e))parts.push(`الحجم <span class="num">${n1(vol(e))}</span> كغ`);
+  else if(reps(e))parts.push(`مجموع العدات <span class="num">${reps(e)}</span>`);
+  if(b)parts.push(`أقصى تقديري <span class="num">${n1(b)}</span> كغ`);
+  let html=parts.join(" · ");
+  if(b&&prev&&b>prev+0.01)html+=` <span class="badge">رقم قياسي جديد</span>`;
+  else if(b&&h.length&&!prev)html+="";
+  return html||"اكتب الوزن والعدات لكل جولة";
+}
+function renderLog(){
+  const s=curSession(false);const isToday=curDate===ymd(new Date());
+  let h=`<div class="datebar card" style="flex-direction:row;padding:8px">
+    <button class="btn ghost" data-a="day" data-n="-1" aria-label="اليوم السابق">→</button>
+    <div class="day">${isToday?"اليوم، ":""}${fDay.format(parseD(curDate))}</div>
+    <button class="btn ghost" data-a="day" data-n="1" aria-label="اليوم التالي">←</button>
+    <input type="date" id="datepick" value="${curDate}" aria-label="اختر التاريخ">
+  </div>`;
+  if(s)s.entries.forEach((e,ei)=>{
+    const last=history(e.ex,curDate).pop();
+    h+=`<section class="card" data-e="${ei}">
+      <div class="spread"><h2>${esc(exName(e.ex))}</h2><button class="btn ghost danger small" data-a="rmEntry" data-e="${ei}">${armed==="e"+ei?"تأكيد الحذف":"حذف"}</button></div>
+      ${last?`<div class="last">آخر مرة (${fShort.format(parseD(last.date))}): <span class="num">${setsText(last.e)}</span></div>`:`<div class="last">أول مرة تسجّل هذا التمرين</div>`}
+      <div class="sets"><span class="h">#</span><span class="h">الوزن (كغ)</span><span class="h">العدات</span><span></span>
+      ${e.sets.map((st,si)=>{const ps=last&&last.e.sets[si];return `<span class="i num">${si+1}</span>
+        <input id="w-${ei}-${si}" inputmode="decimal" data-e="${ei}" data-s="${si}" data-f="w" value="${st.w??""}" placeholder="${ps?(+ps.w||0):"0"}" aria-label="وزن الجولة ${si+1}">
+        <input id="r-${ei}-${si}" inputmode="numeric" data-e="${ei}" data-s="${si}" data-f="r" value="${st.r??""}" placeholder="${ps?ps.r:"0"}" aria-label="عدات الجولة ${si+1}">
+        <button class="btn ghost" data-a="rmSet" data-e="${ei}" data-s="${si}" aria-label="حذف الجولة">×</button>`}).join("")}
+      </div>
+      <div class="spread"><button class="btn" data-a="addSet" data-e="${ei}">+ جولة</button><div class="sum" id="sum-${ei}">${entrySummary(e)}</div></div>
+    </section>`;
+  });
+  if(!s||!s.entries.length){
+    const prevS=sorted().filter(x=>x.date<curDate).slice(-3).reverse();
+    h+=`<div class="card empty"><b>ما في تمارين مسجلة بهاليوم</b><span class="small">اختار تمرين من القائمة، أو كرّر تمارين جلسة سابقة.</span>
+      ${prevS.length?`<div class="row" style="justify-content:center">${prevS.map(p=>`<button class="btn small" data-a="copyFrom" data-id="${p.id}">كرّر جلسة ${fShort.format(parseD(p.date))}: ${p.entries.slice(0,2).map(x=>esc(exName(x.ex))).join("، ")}${p.entries.length>2?"…":""}</button>`).join("")}</div>`:""}</div>`;
+  }
+  if(picking){
+    const q=pickQ.trim();const used=new Set((s?s.entries:[]).map(e=>e.ex));
+    const list=S.exercises.filter(x=>!q||x.name.includes(q));
+    const exact=S.exercises.some(x=>x.name===q);
+    h+=`<div class="card sheet"><div class="spread"><h2>اختر التمرين</h2><button class="btn ghost" data-a="closePick">إغلاق</button></div>
+      <input type="search" id="pickq" placeholder="ابحث أو اكتب اسم تمرين جديد" value="${esc(pickQ)}">
+      <div class="list" id="picklist">${q&&!exact?`<button data-a="newEx"><b>+ أضف «${esc(q)}» كتمرين جديد</b></button>`:""}
+      ${list.map(x=>`<button data-a="pick" data-id="${x.id}">${esc(x.name)}${used.has(x.id)?' <span class="muted small">(مضاف)</span>':""}</button>`).join("")}</div></div>`;
+  }else h+=`<button class="btn primary" data-a="openPick">+ أضف تمرين</button>`;
+  return h;
+}
+
+/* ---------- progress view ---------- */
+function weekStats(startStr){
+  const end=addDays(startStr,7);const per={};let count=0,total=0;
+  sorted().filter(s=>s.date>=startStr&&s.date<end).forEach(s=>{count++;s.entries.forEach(e=>{
+    if(!valid(e).length)return;const p=per[e.ex]||(per[e.ex]={vol:0,reps:0,best:0,sets:0});
+    p.vol+=vol(e);p.reps+=reps(e);p.sets+=valid(e).length;p.best=Math.max(p.best,best(e));total+=vol(e)})});
+  return {per,count,total};
+}
+function delta(a,b){if(!b||!a)return "";const d=(a-b)/b*100;if(Math.abs(d)<0.5)return `<span class="muted">=</span>`;return `<span class="${d>0?"up":"down"} num">${d>0?"▲":"▼"} ${Math.abs(Math.round(d))}%</span>`}
+function chart(ex){
+  const pts=history(ex).map(h=>({d:h.date,v:best(h.e)||reps(h.e)}));
+  if(pts.length<2)return `<p class="muted small">بدها جلستين على الأقل لهالتمرين لنرسم الخط.</p>`;
+  const W=320,H=150,L=34,R=8,T=10,B=22;
+  let lo=Math.min(...pts.map(p=>p.v)),hi=Math.max(...pts.map(p=>p.v));if(hi-lo<1){hi+=1;lo-=1}
+  const pad=(hi-lo)*0.15;lo=Math.max(0,lo-pad);hi+=pad;
+  const x=i=>L+(W-L-R)*i/(pts.length-1),y=v=>T+(H-T-B)*(1-(v-lo)/(hi-lo));
+  const ticks=[lo,(lo+hi)/2,hi];
+  const path=pts.map((p,i)=>`${i?"L":"M"}${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join("");
+  const area=`${path}L${x(pts.length-1).toFixed(1)},${H-B}L${L},${H-B}Z`;
+  const lp=pts[pts.length-1];
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="منحنى التطور" style="direction:ltr">
+    ${ticks.map(t=>`<line x1="${L}" x2="${W-R}" y1="${y(t)}" y2="${y(t)}" stroke="var(--line)" stroke-width="1"/><text x="${L-4}" y="${y(t)+3}" text-anchor="end">${Math.round(t)}</text>`).join("")}
+    <path d="${area}" fill="var(--accent-soft)"/>
+    <path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>
+    ${pts.map((p,i)=>`<circle cx="${x(i)}" cy="${y(p.v)}" r="${i===pts.length-1?4.5:2.5}" fill="var(--accent)"/>`).join("")}
+    <text x="${L}" y="${H-6}" text-anchor="start">${fShort.format(parseD(pts[0].d))}</text>
+    <text x="${W-R}" y="${H-6}" text-anchor="end">${fShort.format(parseD(lp.d))}</text>
+  </svg>`;
+}
+function renderProg(){
+  const start=addDays(weekStart(ymd(new Date())),7*weekOff),prevStart=addDays(start,-7);
+  const a=weekStats(start),b=weekStats(prevStart);
+  const ids=[...new Set([...Object.keys(a.per),...Object.keys(b.per)])];
+  let h=`<section class="card"><div class="spread"><button class="btn ghost" data-a="week" data-n="-1">→ أسبوع قبل</button>
+    <h2 class="small" style="text-align:center">أسبوع ${fShort.format(parseD(start))} – ${fShort.format(parseD(addDays(start,6)))}</h2>
+    <button class="btn ghost" data-a="week" data-n="1" ${weekOff>=0?"disabled":""}>أسبوع بعد ←</button></div>
+    <div class="tiles"><div class="tile"><b>${a.count}</b><span>جلسات (قبلها ${b.count})</span></div>
+      <div class="tile"><b>${n1(a.total)}</b><span>كغ حجم كلي ${delta(a.total,b.total)}</span></div>
+      <div class="tile"><b>${ids.filter(i=>a.per[i]&&b.per[i]&&a.per[i].best>b.per[i].best+0.01).length}</b><span>تمارين تحسّن فيها الأقصى</span></div></div>`;
+  if(ids.length){
+    h+=`<div class="tw"><table><thead><tr><th>التمرين</th><th>الحجم هالأسبوع</th><th>الأسبوع الماضي</th><th>أقصى تقديري</th></tr></thead><tbody>
+    ${ids.map(i=>{const x=a.per[i],y=b.per[i];const v=p=>p?(p.vol?n1(p.vol):p.reps+" عدة"):"—";
+      return `<tr><td>${esc(exName(i))}</td><td class="num">${v(x)} ${x&&y?delta(x.vol||x.reps,y.vol||y.reps):""}</td><td class="num muted">${v(y)}</td>
+      <td class="num">${x&&x.best?n1(x.best):"—"} ${x&&y?delta(x.best,y.best):""}</td></tr>`}).join("")}</tbody></table></div>`;
+  }else h+=`<p class="muted small">ما في تمارين بهالأسبوع ولا اللي قبله.</p>`;
+  h+=`<p class="muted small">الحجم = الوزن × العدات لكل الجولات. الأقصى التقديري = أثقل وزن بتقدر ترفعه مرة وحدة (معادلة Epley)، وبيخليك تقارن 60×10 مع 70×6.</p></section>`;
+  const done=S.exercises.filter(x=>history(x.id).length);
+  if(!progEx||!done.some(x=>x.id===progEx))progEx=done.length?done[0].id:"";
+  h+=`<section class="card"><div class="spread"><h2>منحنى تمرين</h2>${done.length?`<select id="progsel">${done.map(x=>`<option value="${x.id}" ${x.id===progEx?"selected":""}>${esc(x.name)}</option>`).join("")}</select>`:""}</div>`;
+  if(progEx){
+    const hs=history(progEx);let run=0;
+    h+=chart(progEx)+`<div class="tw"><table><thead><tr><th>التاريخ</th><th>الجولات</th><th>أقصى تقديري</th></tr></thead><tbody>
+      ${hs.map(x=>{const b=best(x.e);const pr=b>run+0.01&&run>0;run=Math.max(run,b);return {x,b,pr}}).reverse().map(({x,b,pr})=>`<tr><td>${fShort.format(parseD(x.date))}</td><td class="num">${setsText(x.e)}</td><td class="num">${b?n1(b):"—"} ${pr?'<span class="badge">قياسي</span>':""}</td></tr>`).join("")}</tbody></table></div>`;
+  }else h+=`<p class="muted small">سجّل أول تمرين ليبيّن منحناه هون.</p>`;
+  return h+`</section>`;
+}
+
+/* ---------- analysis view ---------- */
+function analyze(days){
+  const today=ymd(new Date());const from=days?addDays(today,-days+1):"0000-00-00";
+  const rows=[];let prTotal=0;
+  S.exercises.forEach(x=>{
+    const all=history(x.id);const inP=all.filter(h=>h.date>=from);if(!inP.length)return;
+    const kg=all.some(h=>best(h.e)>0);const m=h=>kg?best(h.e):reps(h.e);
+    const before=all.filter(h=>h.date<from);
+    const base=before.length?before[before.length-1]:inP[0],now=inP[inP.length-1];
+    let run=Math.max(0,...before.map(m)),prs=0;
+    inP.forEach((h,i)=>{const v=m(h);if(v>run+0.01&&(run>0||i>0))prs++;run=Math.max(run,v)});
+    prTotal+=prs;
+    const last3=all.slice(-3),prior=all.slice(0,-3);
+    const stalled=all.length>=4&&Math.max(...last3.map(m))<=Math.max(0,...prior.map(m))+0.01;
+    const cmp=base!==now&&m(base)>0;
+    rows.push({x,kg,from:m(base),to:m(now),fromD:base.date,pct:cmp?(m(now)-m(base))/m(base)*100:null,n:inP.length,prs,stalled,
+      vol:inP.reduce((a,h)=>a+vol(h.e),0)});
+  });
+  return {rows,prTotal,from};
+}
+function volBars(from){
+  const today=ymd(new Date());let ws=weekStart(from<"2000"?(sorted()[0]||{date:today}).date:from);const cur=weekStart(today);
+  const weeks=[];while(ws<=cur){weeks.push({s:ws,v:weekStats(ws).total});ws=addDays(ws,7)}
+  const W=weeks.slice(-12);if(W.length<2)return "";
+  const mx=Math.max(1,...W.map(w=>w.v)),w=320,h=120,B=18,bw=(w-8)/W.length;
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" role="img" aria-label="الحجم الأسبوعي" style="direction:ltr">
+    <line x1="0" x2="${w}" y1="${h-B}" y2="${h-B}" stroke="var(--line)"/>
+    ${W.map((x,i)=>{const bh=(h-B-14)*x.v/mx;return `<rect x="${4+i*bw+bw*0.15}" y="${h-B-bh}" width="${bw*0.7}" height="${bh}" rx="3" fill="${i===W.length-1?"var(--accent)":"var(--accent-soft)"}"/>`}).join("")}
+    <text x="4" y="${h-4}" text-anchor="start">${fShort.format(parseD(W[0].s))}</text>
+    <text x="${w-4}" y="${h-4}" text-anchor="end">هالأسبوع</text>
+    <text x="${w-4}" y="10" text-anchor="end">${n1(mx)} كغ</text></svg>`;
+}
+const pctTxt=p=>p===null?"—":`<span class="${p>0.5?"up":p<-0.5?"down":"muted"} num">${p>0?"+":""}${Math.round(p)}%</span>`;
+const valTxt=(v,kg)=>kg?n1(v)+" كغ":v+" عدة";
+function renderAn(){
+  const {rows,prTotal,from}=analyze(anDays);
+  const periods=[[28,"4 أسابيع"],[56,"8 أسابيع"],[91,"3 أشهر"],[0,"كل الفترة"]];
+  let h=`<div class="seg" role="group" aria-label="الفترة">${periods.map(([d,l])=>`<button data-a="period" data-n="${d}" aria-pressed="${anDays===d}">${l}</button>`).join("")}</div>`;
+  if(!rows.length)return h+`<div class="card empty"><b>ما في بيانات بهالفترة</b><span class="small">بعد جلستين لنفس التمرين بيبلّش التحليل يحسب نسبة تطورك.</span></div>`;
+  const cmp=rows.filter(r=>r.pct!==null);const avg=cmp.length?cmp.reduce((a,r)=>a+r.pct,0)/cmp.length:null;
+  const sessions=sorted().filter(s=>s.date>=from).length;
+  h+=`<section class="card"><div class="tiles">
+    <div class="tile"><b>${avg===null?"—":(avg>0?"+":"")+Math.round(avg)+"%"}</b><span>متوسط تطور القوة</span></div>
+    <div class="tile"><b>${prTotal}</b><span>أرقام قياسية جديدة</span></div>
+    <div class="tile"><b>${sessions}</b><span>جلسات</span></div></div>${volBars(from)}</section>`;
+  const top=cmp.filter(r=>r.pct>0.5).sort((a,b)=>b.pct-a.pct).slice(0,3);
+  h+=`<section class="card"><h2>أكتر شي تطورت فيه</h2>`;
+  h+=top.length?top.map((r,i)=>`<div class="hl"><span class="pct">+${Math.round(r.pct)}%</span>
+      <span><span class="rank">${["الأول","التاني","التالت"][i]}</span> · <b>${esc(r.x.name)}</b></span>
+      <span class="muted small">من <span class="num">${valTxt(r.from,r.kg)}</span> إلى <span class="num">${valTxt(r.to,r.kg)}</span>${r.prs?` · ${r.prs} رقم قياسي`:""}</span></div>`).join("")
+    :`<p class="muted small">لسا ما في تمرين زاد بهالفترة. كمّل وسجّل، والتحليل بيلقط أي زيادة.</p>`;
+  h+=`</section>`;
+  const stalled=rows.filter(r=>r.stalled);
+  if(stalled.length)h+=`<section class="card"><h2>تمارين واقفة</h2><p class="muted small">آخر 3 جلسات ما كسرت فيها رقمك. جرّب تزيد 2.5 كغ، أو عدة وحدة، أو بدّل التمرين فترة.</p>
+    <div class="row">${stalled.map(r=>`<span class="chip">${esc(r.x.name)}</span>`).join("")}</div></section>`;
+  h+=`<section class="card"><h2>كل التمارين</h2><div class="tw"><table><thead><tr><th>التمرين</th><th>من</th><th>هلأ</th><th>التغيّر</th></tr></thead><tbody>
+    ${rows.sort((a,b)=>(b.pct??-1e9)-(a.pct??-1e9)).map(r=>`<tr><td>${esc(r.x.name)}<br><span class="muted small">${r.n} جلسات${r.stalled?' · <span class="chip">واقف</span>':""}</span></td>
+      <td class="num muted">${valTxt(r.from,r.kg)}</td><td class="num">${valTxt(r.to,r.kg)}</td><td>${pctTxt(r.pct)}</td></tr>`).join("")}</tbody></table></div>
+    <p class="muted small">النسبة بتقارن أقصى وزن تقديري لمرة وحدة (1RM) بين أول الفترة وآخر جلسة. للتمارين بلا وزن بتقارن العدات.</p></section>`;
+  return h;
+}
+
+/* ---------- history view ---------- */
+function renderHist(){
+  const list=sorted().reverse();
+  if(!list.length)return `<div class="card empty"><b>السجل فاضي</b><span class="small">كل جلسة بتسجلها بتظهر هون مع حجمها وتمارينها.</span></div>`;
+  return `<section class="card"><div class="hist">${list.map(s=>{const v=s.entries.reduce((a,e)=>a+vol(e),0);
+    return `<div class="item"><button class="open" data-a="openDay" data-d="${s.date}"><b>${fDay.format(parseD(s.date))}</b><br>
+      <span class="muted small">${s.entries.map(e=>esc(exName(e.ex))).join("، ")}</span></button>
+      <span class="num small">${n1(v)} كغ</span></div>`}).join("")}</div></section>`;
+}
+
+/* ---------- exercises + backup ---------- */
+function renderEx(){
+  const usedIds=new Set(sorted().flatMap(s=>s.entries.map(e=>e.ex)));
+  let h=`<section class="card"><h2>قائمة التمارين</h2><p class="muted small">الاسم الموحّد بيخلّي المقارنة صحيحة. عدّل الاسم من هون، وكل جلساتك القديمة بتتبعه.</p>
+    <div class="row"><input class="field" id="newname" placeholder="اسم تمرين جديد" style="flex:1;min-width:0"><button class="btn primary" data-a="addEx">أضف</button></div>
+    <div class="hist">${S.exercises.map(x=>`<div class="item"><input class="field" style="flex:1;min-width:0" id="nm-${x.id}" data-rename="${x.id}" value="${esc(x.name)}" aria-label="اسم التمرين">
+      ${usedIds.has(x.id)?`<span class="muted small">مستخدم</span>`:`<button class="btn ghost danger" data-a="delEx" data-id="${x.id}">${armed==="x"+x.id?"تأكيد":"حذف"}</button>`}</div>`).join("")}</div></section>`;
+  h+=`<section class="card"><h2>نسخة احتياطية</h2><p class="muted small">انسخ النص وخزّنه بمكان آمن، وبتقدر ترجّعه بأي وقت بلصقه هون.</p>
+    <div class="row"><button class="btn" data-a="exportCopy">انسخ النسخة الاحتياطية</button><button class="btn" data-a="toggleImport">${showBackup?"إخفاء":"استرجاع من نسخة"}</button></div>
+    <span class="small muted" id="bkmsg"></span>
+    ${showBackup?`<textarea id="importtxt" placeholder="الصق نص النسخة الاحتياطية هون"></textarea><button class="btn primary" data-a="doImport">استرجع ودمج مع بياناتي</button>`:""}</section>`;
+  return h;
+}
+
+/* ---------- render + events ---------- */
+function render(){
+  document.querySelectorAll("#tabs button").forEach(b=>b.setAttribute("aria-current",b.dataset.v===view));
+  app.innerHTML=`<div style="display:flex;flex-direction:column;gap:14px">${view==="log"?renderLog():view==="an"?renderAn():view==="prog"?renderProg():view==="hist"?renderHist():renderEx()}</div>`;
+}
+document.getElementById("tabs").addEventListener("click",e=>{const b=e.target.closest("button");if(b){view=b.dataset.v;armed=null;picking=false;render();scrollTo(0,0)}});
+app.addEventListener("click",e=>{
+  const b=e.target.closest("[data-a]");if(!b)return;const a=b.dataset.a,ei=+b.dataset.e,si=+b.dataset.s;
+  const s=curSession(false);
+  if(a!=="rmEntry"&&a!=="delEx")armed=null;
+  if(a==="day"){curDate=addDays(curDate,+b.dataset.n);picking=false}
+  else if(a==="openPick"){picking=true;pickQ="";render();document.getElementById("pickq").focus();return}
+  else if(a==="closePick")picking=false;
+  else if(a==="pick"||a==="newEx"){
+    let id=b.dataset.id;
+    if(a==="newEx"){id="x"+rid();S.exercises.push({id,name:pickQ.trim()});saveProfile()}
+    const ss=curSession(true);ss.entries.push({ex:id,sets:[{w:"",r:""}]});picking=false;saveSession(ss.id);
+    render();const ix=ss.entries.length-1;const inp=document.getElementById(`w-${ix}-0`);if(inp){inp.scrollIntoView({block:"center"});inp.focus()}return}
+  else if(a==="addSet"){const en=s.entries[ei];const l=en.sets[en.sets.length-1];en.sets.push({w:l?l.w:"",r:l?l.r:""});saveSession(s.id)}
+  else if(a==="rmSet"){s.entries[ei].sets.splice(si,1);if(!s.entries[ei].sets.length)s.entries[ei].sets.push({w:"",r:""});saveSession(s.id)}
+  else if(a==="rmEntry"){if(armed!=="e"+ei){armed="e"+ei}else{armed=null;s.entries.splice(ei,1);saveSession(s.id)}}
+  else if(a==="copyFrom"){const src=S.sessions[b.dataset.id];const ss=curSession(true);
+    src.entries.forEach(en=>ss.entries.push({ex:en.ex,sets:en.sets.map(()=>({w:"",r:""}))}));saveSession(ss.id)}
+  else if(a==="period")anDays=+b.dataset.n;
+  else if(a==="week")weekOff=Math.min(0,weekOff+ +b.dataset.n);
+  else if(a==="openDay"){curDate=b.dataset.d;view="log"}
+  else if(a==="addEx"){const v=document.getElementById("newname").value.trim();if(!v||S.exercises.some(x=>x.name===v))return;S.exercises.push({id:"x"+rid(),name:v});saveProfile()}
+  else if(a==="delEx"){const id=b.dataset.id;if(armed!=="x"+id)armed="x"+id;else{armed=null;S.exercises=S.exercises.filter(x=>x.id!==id);saveProfile()}}
+  else if(a==="toggleImport")showBackup=!showBackup;
+  else if(a==="exportCopy"){const t=JSON.stringify(S);const m=document.getElementById("bkmsg");
+    (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>m.textContent="انتسخت. الصقها بملاحظاتك أو ابعتها لحالك.",
+      ()=>{showBackup=true;render();const ta=document.getElementById("importtxt");ta.value=t;ta.select();document.getElementById("bkmsg").textContent="النسخ التلقائي ما اشتغل؛ النص محدد، انسخه يدوياً."});return}
+  else if(a==="doImport"){const m=document.getElementById("bkmsg");
+    try{const o=JSON.parse(document.getElementById("importtxt").value);if(!o||!Array.isArray(o.exercises)||!o.sessions)throw 0;
+      o.exercises.forEach(x=>{if(!S.exercises.some(y=>y.id===x.id))S.exercises.push(x)});
+      Object.values(o.sessions).forEach(x=>{if(!S.sessions[x.id]){S.sessions[x.id]=x;saveSession(x.id)}});
+      saveProfile();showBackup=false;render();document.getElementById("bkmsg").textContent="تم الاسترجاع.";}
+    catch(err){m.textContent="النص مش نسخة احتياطية صحيحة من دفتر الجيم."}return}
+  render();
+});
+app.addEventListener("input",e=>{
+  const t=e.target;
+  if(t.id==="pickq"){pickQ=t.value;const pos=t.selectionStart;render();const n=document.getElementById("pickq");n.focus();n.setSelectionRange(pos,pos);return}
+  if(t.dataset.f){const s=curSession(false);const v=t.value.replace(",",".").replace(/[^\d.]/g,"");if(v!==t.value)t.value=v;
+    s.entries[+t.dataset.e].sets[+t.dataset.s][t.dataset.f]=v;saveSession(s.id);
+    document.getElementById("sum-"+t.dataset.e).innerHTML=entrySummary(s.entries[+t.dataset.e]);}
+});
+app.addEventListener("change",e=>{
+  const t=e.target;
+  if(t.id==="datepick"&&t.value){curDate=t.value;picking=false;render()}
+  else if(t.id==="progsel"){progEx=t.value;render()}
+  else if(t.dataset.rename){const v=t.value.trim();const x=S.exercises.find(y=>y.id===t.dataset.rename);if(x&&v&&v!==x.name){x.name=v;saveProfile()}else if(x)t.value=x.name}
+});
+app.addEventListener("keydown",e=>{
+  if(e.key==="Enter"&&e.target.id==="pickq"){const f=document.querySelector("#picklist button");if(f)f.click()}
+  if(e.key==="Enter"&&e.target.id==="newname")document.querySelector('[data-a="addEx"]').click();
+});
+
+loadLocal();render();initCloud();
+</script>
+
+<script>
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js");
+if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();
+</script>
+</body>
+</html>
