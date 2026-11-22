@@ -22,7 +22,12 @@ const head = `<!doctype html>
 `;
 const tail = `
 <script>
-if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js");
+if("serviceWorker" in navigator){
+  const had=!!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register("sw.js",{updateViaCache:"none"});
+  // When a new version takes over, reload once so it shows right away.
+  navigator.serviceWorker.addEventListener("controllerchange",()=>{if(had&&!sessionStorage.getItem("swr")){sessionStorage.setItem("swr","1");location.reload()}});
+}
 if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();
 </script>
 </body>
