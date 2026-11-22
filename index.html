@@ -23,7 +23,7 @@
 body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.5;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
-.wrap{max-width:560px;margin:0 auto;padding-block:12px 48px;display:flex;flex-direction:column;gap:14px}
+.wrap{max-width:560px;margin:0 auto;padding-block:12px 150px;display:flex;flex-direction:column;gap:14px}
 header{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
 h1{font-family:var(--f-head);font-size:22px;margin:0;letter-spacing:-.01em}
 h2{font-family:var(--f-head);font-size:17px;margin:0;text-wrap:balance}
@@ -88,7 +88,20 @@ textarea{width:100%;min-height:110px;font:12px/1.4 ui-monospace,Consolas,monospa
 .hist .item{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);align-items:center}
 .hist .item:last-child{border-bottom:0}
 .hist .item button.open{border:0;background:transparent;text-align:start;padding:0;flex:1;min-width:0}
-@media (prefers-reduced-motion:no-preference){.card{transition:border-color .2s}}
+@media (prefers-reduced-motion:no-preference){.card{transition:border-color .2s}.timer{transition:background .3s}}
+.timer{position:fixed;inset:auto 0 0;z-index:6;background:var(--card);border-top:1px solid var(--line);
+  padding:10px max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.timer .in{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:8px}
+.timer .main{display:flex;align-items:center;gap:10px}
+.timer .clock{flex:1;display:flex;flex-direction:column;line-height:1.1;min-width:0}
+.timer .clock b{font-family:var(--f-head);font-size:30px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.timer.run .clock b{color:var(--accent)}
+.timer.done{background:var(--accent-soft)}
+.timer.done .clock b{color:var(--up)}
+.timer #tgo{min-width:84px;padding-block:10px}
+.timer .pre{display:flex;gap:6px}
+.timer .pre button{flex:1;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:5px 0;font-size:13px;font-weight:600;color:var(--muted)}
+.timer .pre button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
 </style>
 
 <div class="wrap" dir="rtl" lang="ar">
@@ -104,6 +117,17 @@ textarea{width:100%;min-height:110px;font:12px/1.4 ui-monospace,Consolas,monospa
     <button data-v="ex">التمارين</button>
   </nav>
   <main id="app"></main>
+</div>
+<div class="timer" id="timer" dir="rtl" lang="ar" hidden>
+  <div class="in">
+    <div class="main">
+      <div class="clock"><b id="tclock">1:30</b><span class="small muted" id="tlabel">مؤقت الراحة</span></div>
+      <button class="btn" data-t="-15" aria-label="نقّص 15 ثانية">−15</button>
+      <button class="btn primary" id="tgo">ابدأ</button>
+      <button class="btn" data-t="15" aria-label="زيد 15 ثانية">+15</button>
+    </div>
+    <div class="pre" id="tpre"><button data-p="60">1:00</button><button data-p="90">1:30</button><button data-p="120">2:00</button><button data-p="180">3:00</button></div>
+  </div>
 </div>
 
 <script>
@@ -379,7 +403,51 @@ function renderEx(){
 }
 
 /* ---------- render + events ---------- */
+/* ---------- rest timer ---------- */
+const T={dur:90,end:0,iv:null,lock:null,ctx:null};
+try{const d=+localStorage.getItem("gym-rest");if(d>=15)T.dur=d}catch(e){}
+const tEl=document.getElementById("timer"),tClock=document.getElementById("tclock"),tGo=document.getElementById("tgo"),tLabel=document.getElementById("tlabel");
+const fmtT=s=>{s=Math.max(0,Math.ceil(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")};
+function tSave(){try{localStorage.setItem("gym-rest",String(T.dur))}catch(e){}}
+function tDraw(){
+  tClock.textContent=fmtT(T.end?(T.end-Date.now())/1000:T.dur);
+  tGo.textContent=T.end?"إيقاف":"ابدأ";tEl.classList.toggle("run",!!T.end);
+  if(T.end)tLabel.textContent="الراحة شغالة";
+  document.querySelectorAll("#tpre button").forEach(b=>b.setAttribute("aria-pressed",+b.dataset.p===T.dur));
+}
+function beep(){
+  try{const c=T.ctx;if(!c)return;const t0=c.currentTime;
+    [0,0.35,0.7].forEach(dt=>{const o=c.createOscillator(),g=c.createGain();o.type="sine";o.frequency.value=880;
+      g.gain.setValueAtTime(0.0001,t0+dt);g.gain.exponentialRampToValueAtTime(0.6,t0+dt+0.02);g.gain.exponentialRampToValueAtTime(0.0001,t0+dt+0.25);
+      o.connect(g).connect(c.destination);o.start(t0+dt);o.stop(t0+dt+0.3)})}catch(e){}
+  try{navigator.vibrate&&navigator.vibrate([300,150,300,150,300])}catch(e){}
+}
+async function wake(on){
+  try{if(on&&!T.lock&&navigator.wakeLock){T.lock=await navigator.wakeLock.request("screen");T.lock.addEventListener("release",()=>T.lock=null)}
+    else if(!on&&T.lock){await T.lock.release();T.lock=null}}catch(e){}
+}
+function tStart(){
+  try{T.ctx=T.ctx||new (window.AudioContext||window.webkitAudioContext)();T.ctx.resume()}catch(e){}
+  tEl.classList.remove("done");T.end=Date.now()+T.dur*1000;clearInterval(T.iv);T.iv=setInterval(tTick,250);wake(true);tDraw();
+}
+function tStop(label){T.end=0;clearInterval(T.iv);wake(false);tLabel.textContent=label||"مؤقت الراحة";tDraw()}
+function tTick(){
+  if(T.end&&Date.now()>=T.end){tStop("خلصت الراحة، يلا الجولة الجاية");tEl.classList.add("done");beep();setTimeout(()=>tEl.classList.remove("done"),5000)}
+  else tDraw();
+}
+tGo.addEventListener("click",()=>T.end?tStop():tStart());
+tEl.addEventListener("click",e=>{
+  const b=e.target.closest("[data-t],[data-p]");if(!b)return;
+  if(b.dataset.p){T.dur=+b.dataset.p;tSave();if(T.end)tStart();else tDraw();return}
+  const d=+b.dataset.t;
+  if(T.end){T.end=Math.max(Date.now()+1000,T.end+d*1000);tDraw()}
+  else{T.dur=Math.max(15,Math.min(600,T.dur+d));tSave();tDraw()}
+});
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&T.end){wake(true);tTick()}});
+tDraw();
+
 function render(){
+  tEl.hidden=view!=="log";
   document.querySelectorAll("#tabs button").forEach(b=>b.setAttribute("aria-current",b.dataset.v===view));
   app.innerHTML=`<div style="display:flex;flex-direction:column;gap:14px">${view==="log"?renderLog():view==="an"?renderAn():view==="prog"?renderProg():view==="hist"?renderHist():renderEx()}</div>`;
 }
