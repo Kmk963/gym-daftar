@@ -5,7 +5,7 @@ import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync } from
 const src = readFileSync(new URL("./index.html", import.meta.url), "utf8");
 const out = new URL("./docs/", import.meta.url);
 mkdirSync(out, { recursive: true });
-const version = new Date().toISOString().replace(/\D/g, "").slice(0, 12);
+const version = new Date().toISOString().replace(/\D/g, "").slice(0, 14);
 
 const head = `<!doctype html>
 <html lang="ar" dir="rtl">
