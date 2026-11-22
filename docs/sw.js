@@ -1,6 +1,6 @@
 // Offline cache. The page itself is fetched fresh whenever there is internet (so updates arrive on the
 // next open) and comes from the cache only when offline. Icons, fonts and the rest are cache-first.
-const CACHE = "gym-daftar-20261122214818";
+const CACHE = "gym-daftar-20261122215442";
 const SHELL = ["./", "index.html", "manifest.json", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", e => {
