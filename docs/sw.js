@@ -1,5 +1,5 @@
 // Offline cache: the app shell is stored on install; fonts and anything else are cached as they load.
-const CACHE = "gym-daftar-202611222127";
+const CACHE = "gym-daftar-202611222133";
 const SHELL = ["./", "index.html", "manifest.json", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", e => {

@@ -87,6 +87,10 @@ tr:last-child td{border-bottom:0}
 .hl:last-child{border-bottom:0}
 .hl .pct{grid-row:span 2;font-family:var(--f-head);font-weight:700;font-size:24px;color:var(--up);font-variant-numeric:tabular-nums;min-width:72px}
 .hl .rank{font-size:12px;color:var(--pr);font-weight:600}
+button.chip{border:1px solid var(--line);font-size:12px;padding:3px 10px;cursor:pointer}
+button.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--card)}
+.bodyf{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.bodyf label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted);min-width:0}
 .chip{font-size:11px;font-weight:600;padding:1px 7px;border-radius:999px;background:var(--bg);color:var(--muted);white-space:nowrap}
 .up{color:var(--up)} .down{color:var(--down)}
 .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
@@ -138,15 +142,16 @@ textarea{width:100%;min-height:110px;font:12px/1.4 ui-monospace,Consolas,monospa
       <button class="btn primary" id="tgo">ابدأ</button>
       <button class="btn" data-t="15" aria-label="زيد 15 ثانية">+15</button>
     </div>
-    <div class="pre" id="tpre"><button data-p="60">1:00</button><button data-p="90">1:30</button><button data-p="120">2:00</button><button data-p="180">3:00</button></div>
+    <div class="pre" id="tpre"><button data-p="60">1:00</button><button data-p="90">1:30</button><button data-p="120">2:00</button><button data-p="180">3:00</button><button data-x="auto" id="tauto">تلقائي</button></div>
   </div>
 </div>
 
 <script>
 const DEFAULT_NAMES=["بنش برس بار","بنش مائل دمبل","تفتيح صدر","ضغط صدر جهاز","سحب أمامي","تجديف بار","تجديف دمبل","عقلة","سكوات","ليغ برس","رفعة رومانية","ديدلفت","رفرفة أرجل","طي أرجل","شولدر برس دمبل","رفرفة جانبية","كتف خلفي","باي بار","باي هامر","تراي حبل","تراي فرنسي","سمانة","بطن"];
-const freshState=()=>({exercises:DEFAULT_NAMES.map((n,i)=>({id:"x"+i,name:n})),sessions:{}});
+const freshState=()=>({exercises:DEFAULT_NAMES.map((n,i)=>({id:"x"+i,name:n})),sessions:{},routines:[],body:{}});
 let S=freshState();
-let view="log",curDate=ymd(new Date()),progEx="",weekOff=0,picking=false,pickQ="",armed=null,showBackup=false,anDays=28;
+let view="log",curDate=ymd(new Date()),progEx="",weekOff=0,picking=false,pickQ="",armed=null,showBackup=false,anDays=28,plateOpen=null,naming=false,barW=20;
+const BODY=[["w","الوزن (كغ)"],["waist","الخصر (سم)"],["chest","الصدر (سم)"],["arm","الذراع (سم)"]];
 const app=document.getElementById("app");
 
 /* ---------- helpers ---------- */
@@ -175,7 +180,7 @@ function weekStart(dateStr){const d=parseD(dateStr);d.setDate(d.getDate()-((d.ge
 const LS="gym-daftar-v1";
 const cloud={db:null,uid:null,chains:{},timers:{}};
 function cacheLocal(){try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}}
-function loadLocal(){try{const t=localStorage.getItem(LS);if(t){const o=JSON.parse(t);if(o&&Array.isArray(o.exercises)&&o.sessions)S=o}}catch(e){}}
+function loadLocal(){try{const t=localStorage.getItem(LS);if(t){const o=JSON.parse(t);if(o&&Array.isArray(o.exercises)&&o.sessions)S=Object.assign({routines:[],body:{}},o)}}catch(e){}}
 function status(text,err){const el=document.getElementById("status");el.textContent=text;el.classList.toggle("err",!!err)}
 const profRef=()=>cloud.db.doc("data/users/"+cloud.uid+"/profile");
 const sessCol=()=>profRef().collection("sessions");
@@ -194,7 +199,7 @@ function saveSession(id){
   clearTimeout(cloud.timers[id]);
   cloud.timers[id]=setTimeout(()=>{const cur=S.sessions[id];const ref=sessCol().doc(id);chain(id,()=>cur?ref.set(clone(cur)):ref.delete())},700);
 }
-function saveProfile(){cacheLocal();if(!cloud.db)return;clearTimeout(cloud.timers.p);cloud.timers.p=setTimeout(()=>chain("p",()=>profRef().set({exercises:clone(S.exercises)})),500)}
+function saveProfile(){cacheLocal();if(!cloud.db)return;clearTimeout(cloud.timers.p);cloud.timers.p=setTimeout(()=>chain("p",()=>profRef().set({exercises:clone(S.exercises),routines:clone(S.routines),body:clone(S.body)})),500)}
 async function initCloud(){
   if(!window.claude||!window.claude.use){status("محفوظ على هذا الجهاز فقط");return}
   const [db,user]=await Promise.all([claude.use("db"),claude.use("user")]);
@@ -210,9 +215,53 @@ async function initCloud(){
     const cloudEmpty=!ns.exercises&&!q.size;
     if(cloudEmpty){ // first visit on this account: upload what this device has
       saveProfile();Object.keys(S.sessions).forEach(saveSession);
-    }else{S={exercises:ns.exercises||freshState().exercises,sessions:ns.sessions};cacheLocal();render()}
+    }else{const pd=p.exists?p.data():{};
+      S={exercises:ns.exercises||freshState().exercises,sessions:ns.sessions,routines:clone(pd.routines||[]),body:clone(pd.body||{})};cacheLocal();render()}
     status("محفوظ على حسابك");
   }catch(e){cloud.db=null;status("ما قدرنا نوصل لحسابك، البيانات محفوظة على هذا الجهاز",true)}
+}
+
+/* ---------- coaching helpers ---------- */
+// Double progression: work in 8-12 reps; when every set at the top weight hits 12, add 2.5 kg and drop to 8.
+const REP_LO=8,REP_HI=12,STEP=2.5;
+function suggest(e){
+  const v=valid(e);const top=Math.max(...v.map(s=>+s.w||0));
+  if(!top)return `<span class="num">${Math.max(...v.map(s=>+s.r))+1}</span> عدات بكل جولة`;
+  const minR=Math.min(...v.filter(s=>(+s.w||0)===top).map(s=>+s.r));
+  if(minR>=REP_HI)return `<span class="num">${n1(top+STEP)}×${REP_LO}</span> (زيد الوزن)`;
+  return `<span class="num">${n1(top)}×${Math.max(minR+1,REP_LO)}</span> بكل الجولات`;
+}
+function plateSplit(total,bar){
+  let side=(total-bar)/2;if(side<-1e-9)return null;const out=[];
+  for(const p of [25,20,15,10,5,2.5,1.25])while(side>=p-1e-9){out.push(p);side-=p}
+  return {out,rest:Math.round(side*2*100)/100};
+}
+function plateLine(e,last){
+  const ws=e.sets.map(s=>+s.w).filter(w=>w>0);
+  const w=ws.length?ws[ws.length-1]:(last?Math.max(0,...valid(last.e).map(s=>+s.w||0)):0);
+  if(!w)return `<div class="last">اكتب وزن جولة لنحسب الأقراص.</div>`;
+  const r=plateSplit(w,barW);
+  return `<div class="last" style="display:flex;flex-direction:column;gap:6px">
+    <div class="spread"><span>الوزن <b class="num">${n1(w)}</b> كغ · وزن البار:</span>
+      <span class="row" style="gap:4px">${[20,15,10].map(x=>`<button class="chip" data-a="bar" data-n="${x}" aria-pressed="${x===barW}">${x}</button>`).join("")}</span></div>
+    <div>${!r?"الوزن أخف من البار.":`كل طرف: <b class="num">${r.out.length?r.out.join(" + "):"البار لحاله"}</b>${r.rest?` <span class="small">(بيضل ${n1(r.rest)} كغ ما بيتقسم)</span>`:""}`}</div></div>`;
+}
+
+/* ---------- body view ---------- */
+function renderBody(){
+  const ds=Object.keys(S.body).sort();const today=ymd(new Date());const t=S.body[today]||{};
+  const prev=ds.filter(d=>d<today).pop();const pv=prev?S.body[prev]:{};
+  let h=`<section class="card"><h2>وزني ومقاساتي</h2>
+    <div class="bodyf">${BODY.map(([k,l])=>`<label>${l}<input class="field num" inputmode="decimal" id="b-${k}" value="${t[k]??""}" placeholder="${pv[k]??""}"></label>`).join("")}</div>
+    <button class="btn primary" data-a="saveBody">${S.body[today]?"حدّث قياس اليوم":"احفظ قياس اليوم"}</button>`;
+  const wp=ds.filter(d=>S.body[d].w).map(d=>({d,v:S.body[d].w}));
+  if(wp.length>=2)h+=lineSvg(wp);
+  if(ds.length>=2){
+    h+=`<div class="tw"><table><thead><tr><th>القياس</th><th>أول مرة</th><th>هلأ</th><th>الفرق</th></tr></thead><tbody>${BODY.map(([k,l])=>{
+      const has=ds.filter(d=>S.body[d][k]);if(has.length<2)return "";const a=S.body[has[0]][k],b=S.body[has[has.length-1]][k];const df=b-a;
+      return `<tr><td>${l}</td><td class="num muted">${n1(a)}</td><td class="num">${n1(b)}</td><td class="num">${df>0?"+":""}${n1(df)}</td></tr>`}).join("")}</tbody></table></div>`;
+  }else h+=`<p class="muted small">سجّل وزنك مرة بالأسبوع، الصبح قبل الأكل، لتطلع المقارنة دقيقة.</p>`;
+  return h+`</section>`;
 }
 
 /* ---------- log view ---------- */
@@ -244,19 +293,21 @@ function renderLog(){
     const last=history(e.ex,curDate).pop();
     h+=`<section class="card" data-e="${ei}">
       <div class="spread"><h2>${esc(exName(e.ex))}</h2><button class="btn ghost danger small" data-a="rmEntry" data-e="${ei}">${armed==="e"+ei?"تأكيد الحذف":"حذف"}</button></div>
-      ${last?`<div class="last">آخر مرة (${fShort.format(parseD(last.date))}): <span class="num">${setsText(last.e)}</span></div>`:`<div class="last">أول مرة تسجّل هذا التمرين</div>`}
+      ${last?`<div class="last">آخر مرة (${fShort.format(parseD(last.date))}): <span class="num">${setsText(last.e)}</span><br>اقتراح اليوم: <b>${suggest(last.e)}</b></div>`:`<div class="last">أول مرة تسجّل هذا التمرين</div>`}
       <div class="sets"><span class="h">#</span><span class="h">الوزن (كغ)</span><span class="h">العدات</span><span></span>
       ${e.sets.map((st,si)=>{const ps=last&&last.e.sets[si];return `<span class="i num">${si+1}</span>
         <input id="w-${ei}-${si}" inputmode="decimal" data-e="${ei}" data-s="${si}" data-f="w" value="${st.w??""}" placeholder="${ps?(+ps.w||0):"0"}" aria-label="وزن الجولة ${si+1}">
         <input id="r-${ei}-${si}" inputmode="numeric" data-e="${ei}" data-s="${si}" data-f="r" value="${st.r??""}" placeholder="${ps?ps.r:"0"}" aria-label="عدات الجولة ${si+1}">
         <button class="btn ghost" data-a="rmSet" data-e="${ei}" data-s="${si}" aria-label="حذف الجولة">×</button>`}).join("")}
       </div>
-      <div class="spread"><button class="btn" data-a="addSet" data-e="${ei}">+ جولة</button><div class="sum" id="sum-${ei}">${entrySummary(e)}</div></div>
+      <div class="spread"><div class="row" style="gap:4px"><button class="btn" data-a="addSet" data-e="${ei}">+ جولة</button><button class="btn ghost small" data-a="plates" data-e="${ei}" aria-expanded="${plateOpen===ei}">الأقراص</button></div><div class="sum" id="sum-${ei}">${entrySummary(e)}</div></div>
+      ${plateOpen===ei?plateLine(e,last):""}
     </section>`;
   });
   if(!s||!s.entries.length){
     const prevS=sorted().filter(x=>x.date<curDate).slice(-3).reverse();
-    h+=`<div class="card empty"><b>ما في تمارين مسجلة بهاليوم</b><span class="small">اختار تمرين من القائمة، أو كرّر تمارين جلسة سابقة.</span>
+    h+=`<div class="card empty"><b>ما في تمارين مسجلة بهاليوم</b><span class="small">ابدأ روتين، أو اختار تمرين من القائمة، أو كرّر تمارين جلسة سابقة.</span>
+      ${S.routines.length?`<div class="row" style="justify-content:center">${S.routines.map(r=>`<button class="btn primary small" data-a="startRoutine" data-id="${r.id}">ابدأ ${esc(r.name)}</button>`).join("")}</div>`:""}
       ${prevS.length?`<div class="row" style="justify-content:center">${prevS.map(p=>`<button class="btn small" data-a="copyFrom" data-id="${p.id}">كرّر جلسة ${fShort.format(parseD(p.date))}: ${p.entries.slice(0,2).map(x=>esc(exName(x.ex))).join("، ")}${p.entries.length>2?"…":""}</button>`).join("")}</div>`:""}</div>`;
   }
   if(picking){
@@ -267,7 +318,11 @@ function renderLog(){
       <input type="search" id="pickq" placeholder="ابحث أو اكتب اسم تمرين جديد" value="${esc(pickQ)}">
       <div class="list" id="picklist">${q&&!exact?`<button data-a="newEx"><b>+ أضف «${esc(q)}» كتمرين جديد</b></button>`:""}
       ${list.map(x=>`<button data-a="pick" data-id="${x.id}">${esc(x.name)}${used.has(x.id)?' <span class="muted small">(مضاف)</span>':""}</button>`).join("")}</div></div>`;
-  }else h+=`<button class="btn primary" data-a="openPick">+ أضف تمرين</button>`;
+  }else{
+    h+=`<button class="btn primary" data-a="openPick">+ أضف تمرين</button>`;
+    if(s&&s.entries.length)h+=naming?`<div class="row"><input class="field" id="rtname" placeholder="اسم الروتين، مثلاً يوم صدر" style="flex:1;min-width:0"><button class="btn" data-a="saveRoutine">احفظ</button><button class="btn ghost" data-a="cancelName">إلغاء</button></div>`
+      :`<button class="btn ghost" data-a="nameRoutine">احفظ تمارين اليوم كروتين</button>`;
+  }
   return h;
 }
 
@@ -283,6 +338,9 @@ function delta(a,b){if(!b||!a)return "";const d=(a-b)/b*100;if(Math.abs(d)<0.5)r
 function chart(ex){
   const pts=history(ex).map(h=>({d:h.date,v:best(h.e)||reps(h.e)}));
   if(pts.length<2)return `<p class="muted small">بدها جلستين على الأقل لهالتمرين لنرسم الخط.</p>`;
+  return lineSvg(pts);
+}
+function lineSvg(pts){
   const W=320,H=150,L=34,R=8,T=10,B=22;
   let lo=Math.min(...pts.map(p=>p.v)),hi=Math.max(...pts.map(p=>p.v));if(hi-lo<1){hi+=1;lo-=1}
   const pad=(hi-lo)*0.15;lo=Math.max(0,lo-pad);hi+=pad;
@@ -407,6 +465,9 @@ function renderEx(){
     <div class="row"><input class="field" id="newname" placeholder="اسم تمرين جديد" style="flex:1;min-width:0"><button class="btn primary" data-a="addEx">أضف</button></div>
     <div class="hist">${S.exercises.map(x=>`<div class="item"><input class="field" style="flex:1;min-width:0" id="nm-${x.id}" data-rename="${x.id}" value="${esc(x.name)}" aria-label="اسم التمرين">
       ${usedIds.has(x.id)?`<span class="muted small">مستخدم</span>`:`<button class="btn ghost danger" data-a="delEx" data-id="${x.id}">${armed==="x"+x.id?"تأكيد":"حذف"}</button>`}</div>`).join("")}</div></section>`;
+  h+=`<section class="card"><h2>الروتينات</h2>${S.routines.length?`<div class="hist">${S.routines.map(r=>`<div class="item"><span style="min-width:0"><b>${esc(r.name)}</b><br><span class="muted small">${r.exs.map(x=>esc(exName(x))).join("، ")}</span></span>
+      <button class="btn ghost danger" data-a="delRoutine" data-id="${r.id}">${armed==="r"+r.id?"تأكيد":"حذف"}</button></div>`).join("")}</div>`
+    :`<p class="muted small">سجّل تمارين يوم، وبعدين اكبس "احفظ تمارين اليوم كروتين" تحت التمارين.</p>`}</section>`;
   h+=`<section class="card"><h2>نسخة احتياطية</h2><p class="muted small">انسخ النص وخزّنه بمكان آمن، وبتقدر ترجّعه بأي وقت بلصقه هون.</p>
     <div class="row"><button class="btn" data-a="exportCopy">انسخ النسخة الاحتياطية</button><button class="btn" data-a="toggleImport">${showBackup?"إخفاء":"استرجاع من نسخة"}</button></div>
     <span class="small muted" id="bkmsg"></span>
@@ -416,8 +477,14 @@ function renderEx(){
 
 /* ---------- render + events ---------- */
 /* ---------- rest timer ---------- */
-const T={dur:90,end:0,iv:null,lock:null,ctx:null};
-try{const d=+localStorage.getItem("gym-rest");if(d>=15)T.dur=d}catch(e){}
+const T={dur:90,end:0,iv:null,lock:null,ctx:null,auto:true,autoT:null,done:new Set()};
+try{const d=+localStorage.getItem("gym-rest");if(d>=15)T.dur=d;T.auto=localStorage.getItem("gym-auto")!=="0";const bw=+localStorage.getItem("gym-bar");if(bw)barW=bw}catch(e){}
+function ensureAudio(){try{T.ctx=T.ctx||new (window.AudioContext||window.webkitAudioContext)();T.ctx.resume()}catch(e){}}
+// Auto rest: once reps are typed for a set, start the rest after a short pause (each set only once).
+function autoRest(key){
+  ensureAudio();if(!T.auto)return;clearTimeout(T.autoT);
+  T.autoT=setTimeout(()=>{if(!T.done.has(key)){T.done.add(key);tStart()}},1500);
+}
 const tEl=document.getElementById("timer"),tClock=document.getElementById("tclock"),tGo=document.getElementById("tgo"),tLabel=document.getElementById("tlabel");
 const fmtT=s=>{s=Math.max(0,Math.ceil(s));return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")};
 function tSave(){try{localStorage.setItem("gym-rest",String(T.dur))}catch(e){}}
@@ -425,7 +492,8 @@ function tDraw(){
   tClock.textContent=fmtT(T.end?(T.end-Date.now())/1000:T.dur);
   tGo.textContent=T.end?"إيقاف":"ابدأ";tEl.classList.toggle("run",!!T.end);
   if(T.end)tLabel.textContent="الراحة شغالة";
-  document.querySelectorAll("#tpre button").forEach(b=>b.setAttribute("aria-pressed",+b.dataset.p===T.dur));
+  document.querySelectorAll("#tpre [data-p]").forEach(b=>b.setAttribute("aria-pressed",+b.dataset.p===T.dur));
+  document.getElementById("tauto").setAttribute("aria-pressed",T.auto);
 }
 // Alarm: 3 long beeps, played twice; the phone vibrates for exactly the length of each beep so sound and buzz land together.
 const BEEP=0.6,GAP=0.3,ROUND_GAP=0.9,ROUNDS=2;
@@ -443,7 +511,7 @@ async function wake(on){
     else if(!on&&T.lock){await T.lock.release();T.lock=null}}catch(e){}
 }
 function tStart(){
-  try{T.ctx=T.ctx||new (window.AudioContext||window.webkitAudioContext)();T.ctx.resume()}catch(e){}
+  ensureAudio();
   tEl.classList.remove("done");T.end=Date.now()+T.dur*1000;clearInterval(T.iv);T.iv=setInterval(tTick,250);wake(true);tDraw();
 }
 function tStop(label){T.end=0;clearInterval(T.iv);wake(false);tLabel.textContent=label||"مؤقت الراحة";tDraw()}
@@ -453,7 +521,8 @@ function tTick(){
 }
 tGo.addEventListener("click",()=>T.end?tStop():tStart());
 tEl.addEventListener("click",e=>{
-  const b=e.target.closest("[data-t],[data-p]");if(!b)return;
+  const b=e.target.closest("[data-t],[data-p],[data-x]");if(!b)return;
+  if(b.dataset.x==="auto"){T.auto=!T.auto;try{localStorage.setItem("gym-auto",T.auto?"1":"0")}catch(err){}tDraw();return}
   if(b.dataset.p){T.dur=+b.dataset.p;tSave();if(T.end)tStart();else tDraw();return}
   const d=+b.dataset.t;
   if(T.end){T.end=Math.max(Date.now()+1000,T.end+d*1000);tDraw()}
@@ -465,14 +534,27 @@ tDraw();
 function render(){
   tEl.hidden=view!=="log";
   document.querySelectorAll("#tabs button").forEach(b=>b.setAttribute("aria-current",b.dataset.v===view));
-  app.innerHTML=`<div style="display:flex;flex-direction:column;gap:14px">${view==="log"?renderLog():view==="an"?renderAn():view==="prog"?renderProg():view==="hist"?renderHist():renderEx()}</div>`;
+  app.innerHTML=`<div style="display:flex;flex-direction:column;gap:14px">${view==="log"?renderLog():view==="an"?renderAn()+renderBody():view==="prog"?renderProg():view==="hist"?renderHist():renderEx()}</div>`;
 }
 document.getElementById("tabs").addEventListener("click",e=>{const b=e.target.closest("button");if(b){view=b.dataset.v;armed=null;picking=false;render();scrollTo(0,0)}});
 app.addEventListener("click",e=>{
   const b=e.target.closest("[data-a]");if(!b)return;const a=b.dataset.a,ei=+b.dataset.e,si=+b.dataset.s;
   const s=curSession(false);
-  if(a!=="rmEntry"&&a!=="delEx")armed=null;
-  if(a==="day"){curDate=addDays(curDate,+b.dataset.n);picking=false}
+  if(a!=="rmEntry"&&a!=="delEx"&&a!=="delRoutine")armed=null;
+  if(a==="day"){curDate=addDays(curDate,+b.dataset.n);picking=false;plateOpen=null;naming=false}
+  else if(a==="startRoutine"){const r=S.routines.find(x=>x.id===b.dataset.id);const ss=curSession(true);
+    r.exs.filter(ex=>S.exercises.some(x=>x.id===ex)).forEach(ex=>{const l=history(ex,curDate).pop();const n=l?valid(l.e).length:3;
+      ss.entries.push({ex,sets:Array.from({length:n||3},()=>({w:"",r:""}))})});saveSession(ss.id)}
+  else if(a==="nameRoutine"){naming=true;render();document.getElementById("rtname").focus();return}
+  else if(a==="cancelName")naming=false;
+  else if(a==="saveRoutine"){const v=document.getElementById("rtname").value.trim();if(!v)return;
+    S.routines.push({id:"r"+rid(),name:v,exs:[...new Set(s.entries.map(e=>e.ex))]});naming=false;saveProfile()}
+  else if(a==="delRoutine"){const id=b.dataset.id;if(armed!=="r"+id)armed="r"+id;else{armed=null;S.routines=S.routines.filter(x=>x.id!==id);saveProfile()}}
+  else if(a==="plates")plateOpen=plateOpen===ei?null:ei;
+  else if(a==="bar"){barW=+b.dataset.n;try{localStorage.setItem("gym-bar",String(barW))}catch(err){}}
+  else if(a==="saveBody"){const today=ymd(new Date());const o={};
+    BODY.forEach(([k])=>{const v=parseFloat(document.getElementById("b-"+k).value.replace(",","."));if(v>0)o[k]=v});
+    if(Object.keys(o).length)S.body[today]=o;else delete S.body[today];saveProfile()}
   else if(a==="openPick"){picking=true;pickQ="";render();document.getElementById("pickq").focus();return}
   else if(a==="closePick")picking=false;
   else if(a==="pick"||a==="newEx"){
@@ -497,6 +579,8 @@ app.addEventListener("click",e=>{
   else if(a==="doImport"){const m=document.getElementById("bkmsg");
     try{const o=JSON.parse(document.getElementById("importtxt").value);if(!o||!Array.isArray(o.exercises)||!o.sessions)throw 0;
       o.exercises.forEach(x=>{if(!S.exercises.some(y=>y.id===x.id))S.exercises.push(x)});
+      (o.routines||[]).forEach(r=>{if(!S.routines.some(y=>y.id===r.id))S.routines.push(r)});
+      S.body=Object.assign({},o.body||{},S.body);
       Object.values(o.sessions).forEach(x=>{if(!S.sessions[x.id]){S.sessions[x.id]=x;saveSession(x.id)}});
       saveProfile();showBackup=false;render();document.getElementById("bkmsg").textContent="تم الاسترجاع.";}
     catch(err){m.textContent="النص مش نسخة احتياطية صحيحة من دفتر الجيم."}return}
@@ -507,6 +591,7 @@ app.addEventListener("input",e=>{
   if(t.id==="pickq"){pickQ=t.value;const pos=t.selectionStart;render();const n=document.getElementById("pickq");n.focus();n.setSelectionRange(pos,pos);return}
   if(t.dataset.f){const s=curSession(false);const v=t.value.replace(",",".").replace(/[^\d.]/g,"");if(v!==t.value)t.value=v;
     s.entries[+t.dataset.e].sets[+t.dataset.s][t.dataset.f]=v;saveSession(s.id);
+    if(t.dataset.f==="r"&&+v>0)autoRest(s.id+"/"+t.dataset.e+"/"+t.dataset.s);
     document.getElementById("sum-"+t.dataset.e).innerHTML=entrySummary(s.entries[+t.dataset.e]);}
 });
 app.addEventListener("change",e=>{
